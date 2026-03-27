@@ -61,6 +61,7 @@ def write_to_influx(data: dict) -> None:
 
 
 def build_point(data: dict) -> Point:
+    event_time = datetime.fromtimestamp(float(data.get("timestamp", time.time())), tz=timezone.utc)
     return (
         Point("machine_metrics")
         .tag("machine", MACHINE_TAG)
@@ -75,7 +76,7 @@ def build_point(data: dict) -> Point:
         .field("uptime_s", int(data.get("uptime_s", 0)))
         .field("alarm_code", int(data.get("alarm_code", 0)))
         .field("valid", bool(data.get("valid", True)))
-        .time(datetime.now(timezone.utc), WritePrecision.NS)
+        .time(event_time, WritePrecision.NS)
     )
 
 

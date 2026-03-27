@@ -6,6 +6,7 @@ writer = load_module("influxdb_writer_module", "influxdb_writer/influxdb.py")
 
 def test_build_point_contains_expected_tags_and_fields():
     payload = {
+        "timestamp": 1711576800.0,
         "temperature": 25.34,
         "pressure": 8.76,
         "humidity": 54.32,
@@ -28,6 +29,7 @@ def test_build_point_contains_expected_tags_and_fields():
     assert "temperature=25.34" in line
     assert "pressure=8.76" in line
     assert "cycle_count=12i" in line
+    assert line.endswith("1711576800000000000")
 
 
 def test_write_to_influx_uses_configured_bucket():
