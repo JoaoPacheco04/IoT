@@ -1,0 +1,96 @@
+services:
+  modbus_server:
+    build:
+      context: ./modbus_server
+    container_name: modbus_server
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - iot_net
+
+  modbus_client:
+    build:
+      context: ./modbus_client
+    container_name: modbus_client
+    env_file:
+      - .env
+    depends_on:
+      - modbus_server
+      - mosquitto
+    restart: unless-stopped
+    networks:
+      - iot_net
+
+  influxdb_writer:
+    build:
+      context: ./influxdb_writer
+    container_name: influxdb_writer
+    env_file:
+      - .env
+    depends_on:
+      - mosquitto
+      - influxdb
+    restart: unless-stopped
+    networks:
+      - iot_net
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: mosquitto
+    ports:
+      - "${MQTT_HOST_PORT:-1885}:1883"
+      - "${MQTT_WS_HOST_PORT:-9001}:9001"
+    volumes:
+      - ./config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    restart: unless-stopped
+    networks:
+      - iot_net
+
+  influxdb:
+    image: influxdb:2.7
+    container_name: influxdb
+    ports:
+      - "${INFLUXDB_PORT:-8086}:8086"
+    env_file:
+      - .env
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_USERNAME}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_PASSWORD}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUX_ORG}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUX_BUCKET}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUX_TOKEN}
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    restart: unless-stopped
+    networks:
+      - iot_net
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: iot_grafana
+    env_file:
+      - .env
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_SERVER_ROOT_URL: http://localhost:${GRAFANA_PORT}
+    depends_on:
+      - influxdb
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./config/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    restart: unless-stopped
+    networks:
+      - iot_net
+
+networks:
+  iot_net:
+
+volumes:
+  influxdb_data:
+  grafana_data:
